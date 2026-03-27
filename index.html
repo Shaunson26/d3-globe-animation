@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-      <style>
+    <style>
         #globe-canvas {
             width: 100%;
             /* Fill the container width */
@@ -16,6 +16,7 @@
             display: block;
             margin: 0 auto;
             /* Center it if you like */
+            border: 1px solid #ccc;
         }
     </style>
 </head>
@@ -25,19 +26,23 @@
     <div id="controls">
         <button id="tour-btn">Fly to Random Country</button>
         <h2 id="country-name">World</h2>
+        <ul id="country-info"></ul>
+        <img id="country-flag" src="" alt="flag">
     </div>
     <canvas id="globe-canvas"></canvas>
 
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         import * as topojson from 'https://cdn.jsdelivr.net/npm/topojson-client@3/+esm';
-        import world from "./countries-110m.json" with { type: "json" };
-        const land = topojson.feature(world, world.objects.land);
+        // https://github.com/nvkelso/natural-earth-vector
+        import world from "./assets/countries-medium-rne.json" with { type: "json" };
+        console.log(world)
+        const land = topojson.feature(world, world.objects.countries);
         const countries = topojson.feature(world, world.objects.countries).features;
         const borders = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
 
         // 1. Setup Canvas
-       const canvasElement = document.getElementById("globe-canvas");
+        const canvasElement = document.getElementById("globe-canvas");
         const width = canvasElement.clientWidth;
         const height = width;
         const canvas = d3.select("#globe-canvas").attr("width", width).attr("height", height);
@@ -76,7 +81,23 @@
         async function transition() {
 
             const country = countries[Math.floor(Math.random() * countries.length)];
-            d3.select("#country-name").text(country.properties.name);
+            const countryData = country.properties
+            console.log(countryData.iso_a2)
+
+            d3.select("#country-name").text(countryData.admin);
+            d3.select("#country-info").html("");
+            d3.select("#country-info")
+                .selectAll("li")
+                .data(Object.entries(countryData))
+                .enter()
+                .append("li")
+                .html(d => {
+                    // Format the key (e.g., name_long -> Name Long)
+                    const key = d[0].replace('_', ' ');
+                    const value = typeof d[1] === 'number' ? d[1].toLocaleString() : d[1];
+                    return `<span class="label">${key}:</span><span class="value">${value}</span>`;
+                });
+            d3.select("#country-flag").attr("src", `https://flagcdn.com/w320/${countryData.iso_a2.toLowerCase()}.png`).attr("alt", `${countryData.admin} flag`);
 
             // 1. Setup Rotation Targets
             const p1 = projection.rotate();
@@ -94,7 +115,7 @@
             const projectionCountry = d3.geoOrthographic().scale(250).translate([width / 2, height / 2]).precision(0.1).fitSize([width, height], country)
             let s2raw = Math.floor(projectionCountry.scale() * 0.5)
             let s2 = s2raw < 250 ? 400 : s2raw > 1000 ? 1000 : s2raw;
-            console.log(s2raw, s2)
+            //console.log(s2raw, s2)
 
             // if (s2 < 250) { 
             //     console.log(country)
