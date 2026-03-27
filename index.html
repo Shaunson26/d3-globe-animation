@@ -5,59 +5,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-..." crossorigin="anonymous">
+    <script src=" https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js "></script>
     <style>
-        #globe-canvas {
-            width: 100%;
-            /* Fill the container width */
-            max-width: 600px;
-            /* Keep it from getting too huge */
-            height: auto;
-            /* Maintain aspect ratio */
-            display: block;
-            margin: 0 auto;
-            /* Center it if you like */
-            border: 1px solid #ccc;
+        body {
+            max-width: 1400px;
+            margin: auto;
+        }
+
+        #country-info-list .label {
+            font-weight: 600;
         }
     </style>
 </head>
 
-<body>
+<body class="vh-100 bg-light p-2">
 
-    <div id="controls">
-        <button id="tour-btn">Fly to Random Country</button>
-        <h2 id="country-name">World</h2>
-        <ul id="country-info"></ul>
-        <img id="country-flag" src="" alt="flag">
+    <div class="container-fluid h-100 card">
+        <h1 class="text-left">Geo-trainer</h1>
+
+        <div class="row h-100 g-2 pb-2">
+
+            <div class="col-lg-4">
+                <div id="controls" class="card p-2 bg-light h-100">
+                    <button id="tour-btn" class="btn btn-primary w-100 mb-3">Fly to Random Country</button>
+                    <div id="country-info" class="d-none">
+                        <h2 id="country-name" class="h4">&nbsp</h2>
+                        <ul id="country-info-list" class="list-unstyled">
+                            <li><span class="label">Continent: </span><span id="continent"></span></li>
+                            <li><span class="label">Region: </span><span id="region_un"></span></li>
+                            <li><span class="label">Sub-region: </span><span id="subregion"></span></li>
+                            <li><span class="label">Population: </span><span id="pop_est" class="value"></span></li>
+                            <li><span class="label">Area: </span><span id="area" class="value"></span> km<sup>2</sup>
+                            </li>
+                        </ul>
+                        <img id="country-flag" src="" alt="" class="card">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8 ">
+                <div id="globe" class="card bg-light h-100">
+                    <canvas id="globe-canvas" class="h-100"></canvas>
+                </div>
+            </div>
+
+
+
+        </div>
     </div>
-    <canvas id="globe-canvas"></canvas>
 
     <script type="module">
+
+        // Imports and data
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         import * as topojson from 'https://cdn.jsdelivr.net/npm/topojson-client@3/+esm';
         // https://github.com/nvkelso/natural-earth-vector
         import world from "./assets/countries-medium-rne.json" with { type: "json" };
-        console.log(world)
         const land = topojson.feature(world, world.objects.countries);
         const countries = topojson.feature(world, world.objects.countries).features;
         const borders = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
+        const country_names = countries.map(d => d.properties.admin);
 
         // 1. Setup Canvas
         const canvasElement = document.getElementById("globe-canvas");
         const width = canvasElement.clientWidth;
-        const height = width;
+        const height = canvasElement.clientHeight;
         const canvas = d3.select("#globe-canvas").attr("width", width).attr("height", height);
         const context = canvas.node().getContext("2d");
 
         // 2. Setup Projection
-        const projection = d3.geoOrthographic()
-            .scale(250) // zoom?
+        const projection = d3.geoGnomonic()
+            .scale(Math.min(width, height) / 2 * 0.8) // Adjust scale to fit and keep round
             .translate([width / 2, height / 2])
             .precision(0.1);
 
         // 3. Link Path to Context (Crucial!)
         const path = d3.geoPath(projection, context);
 
-        function render(activeCountry = null) {
+        function render(selectedCountry = null, hoveredCountry = null) {
             context.clearRect(0, 0, width, height);
 
             // Sphere (Water)
@@ -66,9 +93,9 @@
             // Land
             context.beginPath(); path(land); context.fillStyle = "#d1d1d1"; context.fill();
 
-            // Active Country Highlight
-            if (activeCountry) {
-                context.beginPath(); path(activeCountry); context.fillStyle = "#ff5722"; context.fill();
+            // Selected Country Fill
+            if (selectedCountry) {
+                context.beginPath(); path(selectedCountry); context.fillStyle = "#ff5722"; context.fill();
             }
 
             // Borders
@@ -76,28 +103,28 @@
 
             // Outline
             context.beginPath(); path({ type: "Sphere" }); context.strokeStyle = "#444"; context.lineWidth = 1; context.stroke();
+
+            // Hovered Country Outline Highlight
+            if (hoveredCountry) {
+                context.beginPath(); path(hoveredCountry); context.strokeStyle = "#000"; context.lineWidth = 1; context.stroke();
+            }
         }
 
         async function transition() {
 
             const country = countries[Math.floor(Math.random() * countries.length)];
+            selectedCountry = country;
             const countryData = country.properties
-            console.log(countryData.iso_a2)
 
             d3.select("#country-name").text(countryData.admin);
-            d3.select("#country-info").html("");
-            d3.select("#country-info")
-                .selectAll("li")
-                .data(Object.entries(countryData))
-                .enter()
-                .append("li")
-                .html(d => {
-                    // Format the key (e.g., name_long -> Name Long)
-                    const key = d[0].replace('_', ' ');
-                    const value = typeof d[1] === 'number' ? d[1].toLocaleString() : d[1];
-                    return `<span class="label">${key}:</span><span class="value">${value}</span>`;
-                });
+            d3.select("#continent").text(countryData.continent);
+            d3.select("#region_un").text(countryData.region_un);
+            d3.select("#subregion").text(countryData.subregion);
+            d3.select("#pop_est").text(countryData.pop_est.toLocaleString());
+            d3.select("#area").text(countryData.area.toLocaleString());
             d3.select("#country-flag").attr("src", `https://flagcdn.com/w320/${countryData.iso_a2.toLowerCase()}.png`).attr("alt", `${countryData.admin} flag`);
+
+            d3.select("#country-info").classed("d-none", false);
 
             // 1. Setup Rotation Targets
             const p1 = projection.rotate();
@@ -112,7 +139,7 @@
             //const s2 = projection.scale();
             //const s2 = d3.shuffle([200,400,800,1000])[0]
 
-            const projectionCountry = d3.geoOrthographic().scale(250).translate([width / 2, height / 2]).precision(0.1).fitSize([width, height], country)
+            const projectionCountry = d3.geoOrthographic().scale(Math.min(width, height) / 2 * 0.8).translate([width / 2, height / 2]).precision(0.1).fitSize([width, height], country)
             let s2raw = Math.floor(projectionCountry.scale() * 0.5)
             let s2 = s2raw < 250 ? 400 : s2raw > 1000 ? 1000 : s2raw;
             //console.log(s2raw, s2)
@@ -137,14 +164,29 @@
                             .rotate(r(t))
                             .scale(s(t));
 
-                        render(country);
+                        render(selectedCountry, hoveredCountry);
                     };
                 })
                 .end();
         }
 
         // Initial Draw
+        let selectedCountry = null;
+        let hoveredCountry = null;
         render();
+
+        // Add hover interactions
+        canvas.on("mousemove", function (event) {
+            const [x, y] = d3.pointer(event);
+            const [lon, lat] = projection.invert([x, y]);
+            hoveredCountry = countries.find(country => d3.geoContains(country, [lon, lat]));
+            render(selectedCountry, hoveredCountry);
+        });
+
+        canvas.on("mouseout", function () {
+            hoveredCountry = null;
+            render(selectedCountry, hoveredCountry);
+        });
 
         // Attach event
         d3.select("#tour-btn").on("click", transition);
