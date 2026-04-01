@@ -1,26 +1,41 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
+//const d3geoX = d3.geoGnomonic
+const d3geoX = d3.geoOrthographic
+
 export function initGlobe(canvasSelector) {
+
+    const rootStyles = getComputedStyle(document.documentElement);
+
+    // Retrieve specific theme colors
+    const bodyBg = rootStyles.getPropertyValue('--bs-body-bg').trim();
+
+    // Container dimensions
     const canvasElement = document.querySelector(canvasSelector);
     const width = canvasElement.clientWidth;
     const height = canvasElement.clientHeight;
     const canvas = d3.select(canvasElement).attr("width", width).attr("height", height);
     const context = canvas.node().getContext("2d");
 
-    const projection = d3.geoGnomonic()
+    // Projection (think math converter)
+    const projection = d3geoX()
         .scale(Math.min(width, height) / 2 * 0.8)
         .translate([width / 2, height / 2])
         .precision(0.1);
 
+    // Path generator (think drawer)
     const path = d3.geoPath(projection, context);
 
     function render(land, borders, selectedCountry = null, hoveredCountry = null) {
+
+        // Clear the canvas
         context.clearRect(0, 0, width, height);
 
-        context.beginPath();
-        path({ type: "Sphere" });
-        context.fillStyle = "#e3f2fd";
-        context.fill();
+        // Draw the globe background    
+        //context.beginPath();
+        //path({ type: "Sphere" });
+        //context.fillStyle = "#e3f2fd";
+        //context.fill();
 
         context.beginPath();
         path(land);
@@ -36,10 +51,12 @@ export function initGlobe(canvasSelector) {
 
         context.beginPath();
         path(borders);
-        context.strokeStyle = "#fff";
+        //context.strokeStyle = "#fff";
+        context.strokeStyle = bodyBg;
         context.lineWidth = 0.5;
         context.stroke();
-
+        
+        // Draw the globe outline on top of everything
         context.beginPath();
         path({ type: "Sphere" });
         context.strokeStyle = "#444";
@@ -65,7 +82,7 @@ export function initGlobe(canvasSelector) {
 }
 
 export function computeCountryZoomScale(country, width, height) {
-    const projectionCountry = d3.geoOrthographic()
+    const projectionCountry = d3geoX()
         .scale(Math.min(width, height) / 2 * 0.8)
         .translate([width / 2, height / 2])
         .precision(0.1)

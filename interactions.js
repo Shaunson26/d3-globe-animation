@@ -7,6 +7,15 @@ export function setupInteractions(globe, data) {
     let selectedCountry = null;
     let hoveredCountry = null;
 
+    async function selectCountryAnimateAndUpdate(country) {
+        updateCountryInfo(country);
+        await animateToCountry(country, globe.projection, (selected, hovered) => {
+            globe.render(data.land, data.borders, selected, hovered);
+        }, globe.width, globe.height, selectedCountry, hoveredCountry);
+
+        globe.render(data.land, data.borders, selectedCountry, hoveredCountry);
+    }
+
     globe.render(data.land, data.borders, selectedCountry, hoveredCountry);
 
     globe.canvas.on("mousemove", function (event) {
@@ -28,15 +37,18 @@ export function setupInteractions(globe, data) {
         hideHoverLabel();
     });
 
+    globe.canvas.on("click", async (event) => {
+        const [x, y] = d3.pointer(event);
+        const country = findCountryByPoint(globe.projection, [x, y]);
+        if (!country) return;
+        //console.log("Clicked country:", country ? country.properties.admin : "None");
+        selectedCountry = country;
+        await selectCountryAnimateAndUpdate(country);
+    });
+
     d3.select("#tour-btn").on("click", async () => {
         const country = randomCountry();
         selectedCountry = country;
-        updateCountryInfo(country);
-
-        await animateToCountry(country, globe.projection, (selected, hovered) => {
-            globe.render(data.land, data.borders, selected, hovered);
-        }, globe.width, globe.height, selectedCountry, hoveredCountry);
-
-        globe.render(data.land, data.borders, selectedCountry, hoveredCountry);
+        await selectCountryAnimateAndUpdate(country);
     });
 }
